@@ -13,25 +13,22 @@ class DataClass implements ClassDeclarationsMacro {
   void buildDeclarationsForClass(ClassDeclaration clazz,
       MemberDeclarationBuilder builder) async {
     final className = clazz.identifier.name;
-
     final fields = await builder.fieldsOf(clazz);
 
 
     var clazzFields = <_ClassField>[];
 
     for (final field in fields) {
-      final fieldName = field.identifier.name;
       final fieldType = (field.type.code as NamedTypeAnnotationCode).name.name;
 
       var generics = <String>[];
-      if (_collectionTypes.contains(fieldType)) {
+      if (fieldType.isCollectionType) {
         generics.addAll((field.type.code as NamedTypeAnnotationCode)
             .typeArguments
             .map((e) => (e as NamedTypeAnnotationCode).name.name));
       }
 
-      final clazzfield = _ClassField(field.identifier.name,
-          (field.type.code as NamedTypeAnnotationCode).name.name, generics);
+      final clazzfield = _ClassField(field.identifier.name, fieldType, generics);
       clazzFields.add(clazzfield);
     }
 
@@ -123,7 +120,7 @@ class DataClass implements ClassDeclarationsMacro {
 
     if (field.isCollectionType) {
       final firstGeneric = fieldGenerics.first;
-      return firstGeneric.isBaseType?"'$fieldName': $fieldName,":
+      return firstGeneric.isBaseType ? "'$fieldName': $fieldName," :
       "'$fieldName': $fieldName.map((e) => e.toJson()).toList(),";
     }
 
@@ -134,7 +131,8 @@ class DataClass implements ClassDeclarationsMacro {
       List<_ClassField> fields,) {
     final code = '''
     $className copyWith({
-      ${fields.map((field) => '${field.typeWithGenerics}? ${field.name},').join('\n')}
+      ${fields.map((field) => '${field.typeWithGenerics}? ${field.name},').join(
+        '\n')}
     }) {
       return $className(
         ${fields.map((field) => '${field.name}: ${field.name} ?? this.${field
@@ -204,9 +202,12 @@ class _ClassField {
 
   bool get isCollectionType => _collectionTypes.contains(type);
 
-  String get typeWithGenerics => generics.isEmpty ? type : '$type<${generics.join(', ')}>';
+  String get typeWithGenerics =>
+      generics.isEmpty ? type : '$type<${generics.join(', ')}>';
 }
 
 extension on String {
   bool get isBaseType => _baseTypes.contains(this);
+
+  bool get isCollectionType => _collectionTypes.contains(this);
 }
